@@ -1,6 +1,6 @@
 # ssm2logger
 
-A fast (I mean FAST) cross-platform, headless logger for Subaru Select Monitor 2 (SSM2) written in go.
+A fast (like, I mean, SUPER FAST) cross-platform, headless Subaru Select Monitor 2 (SSM2) logging tool written in go.
 
 # Why?
 I built a small Raspberry Pi system to live in my 2005 Subaru Outback XT to do data logging automatically every time I drive. Most of the software out there didn't offer the solution(s) I was hoping for. They either required a UI, or were built for another embedded system with features/hardware I didn't have or care to have.
