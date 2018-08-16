@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/go-serial/serial"
+	. "github.com/rgeyer/ssm2logger/ssm2lib"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 		defer f.Close()
 	}
 
-	initPacket := NewInitPacket(0xF0, 0x10)
+	initPacket := NewInitPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10)
 
 	count, err := f.Write(initPacket.GetBytes())
 	if err != nil {
@@ -55,9 +56,7 @@ func main() {
 		fmt.Println(resp_bytes[8] & (1 << 6))
 	}
 
-	//[]byte{0x80, 0x10, 0xF0, 0x08, 0xA8, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x1C, 0x54}
-
-	readPid := NewReadPacket(0xF0, 0x10, []byte{0x46, 0x3c, 0x3D, 0x1C, 0x20, 0x22, 0x29, 0x32, 0x3B, 0xA, 0xD, 0x11, 0xE, 0x9, 0x13})
+	readPid := NewReadPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, []byte{0x46, 0x3c, 0x3D, 0x1C, 0x20, 0x22, 0x29, 0x32, 0x3B, 0xA, 0xD, 0x11, 0xE, 0x9, 0x13})
 	count, err = f.Write(readPid.GetBytes())
 	if err != nil {
 		fmt.Println("Failed to send serial:", err)
@@ -73,6 +72,9 @@ func main() {
 			fmt.Println("Error reading from serial port: ", err)
 		}
 	} else {
+		readPacket := NewPacketFromBytes(resp[count:])
+		fmt.Println(readPacket)
+		fmt.Println(readPacket.GetData())
 		fmt.Println("Tx: ", hex.EncodeToString(resp[:count]))
 		fmt.Println("Rx: ", hex.EncodeToString(resp[count:]))
 
