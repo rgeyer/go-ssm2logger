@@ -38,22 +38,24 @@ const (
 )
 
 type Ssm2Packet struct {
-	Destination Ssm2Device
-	Source      Ssm2Device
-	Command     Ssm2Command
-	DataSize    int
-	Capacity    int
+	Destination Ssm2Device  `json:destination`
+	Source      Ssm2Device  `json:source`
+	Command     Ssm2Command `json:command`
+	DataSize    int         `json:data_size`
+	Data        []byte      `json:data`
 	buffer      []byte
 }
 
 func NewPacketFromBytes(bytes []byte) *Ssm2Packet {
-	return &Ssm2Packet{
+	p := &Ssm2Packet{
 		Destination: Ssm2Device(bytes[Ssm2PacketIndexDestination]),
 		Source:      Ssm2Device(bytes[Ssm2PacketIndexSource]),
 		Command:     Ssm2Command(bytes[Ssm2PacketIndexCommand]),
 		DataSize:    int(bytes[Ssm2PacketIndexDataSize]),
 		buffer:      bytes,
 	}
+	p.Data = p.GetData()
+	return p
 }
 
 func NewInitPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
@@ -83,8 +85,8 @@ func NewReadPacket(src Ssm2Device, dest Ssm2Device, pids []byte) *Ssm2Packet {
 		Command:     Ssm2CommandReadAddressesRequestA8,
 		DataSize:    data_size,
 		buffer:      make([]byte, buffer_size),
-		Capacity:    buffer_size,
 	}
+	p.Data = p.GetData()
 	p.buffer[5] = 0x00 // Padding.. I guess
 
 	pids_idx := 6

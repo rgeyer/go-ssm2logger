@@ -1,5 +1,7 @@
 package ssm2lib
 
+import "fmt"
+
 type Ssm2Device byte
 
 const (
@@ -10,9 +12,20 @@ const (
 )
 
 func (d Ssm2Device) String() string {
-	if d == Ssm2DeviceEngine10 {
+	switch device := d; device {
+	case Ssm2DeviceNone:
+		return "None"
+	case Ssm2DeviceEngine10:
 		return "Engine"
+	case Ssm2DeviceTransmission18:
+		return "Transmission"
+	case Ssm2DeviceDiagnosticToolF0:
+		return "DiagnosticTool"
+	default:
+		return "Unknown"
 	}
+}
 
-	return "None"
+func (d Ssm2Device) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", d.String())), nil
 }

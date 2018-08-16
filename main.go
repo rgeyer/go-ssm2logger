@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -73,8 +74,12 @@ func main() {
 		}
 	} else {
 		readPacket := NewPacketFromBytes(resp[count:])
-		fmt.Println(readPacket)
-		fmt.Println(readPacket.GetData())
+		js, err := json.Marshal(readPacket)
+		if err != nil {
+			fmt.Println("Couldn't marshal the readPacket", err)
+		} else {
+			fmt.Println(string(js))
+		}
 		fmt.Println("Tx: ", hex.EncodeToString(resp[:count]))
 		fmt.Println("Rx: ", hex.EncodeToString(resp[count:]))
 
