@@ -22,7 +22,7 @@ func (d Ssm2Device) String() string {
 	case Ssm2DeviceDiagnosticToolF0:
 		return "DiagnosticTool"
 	default:
-		return "Unknown"
+		return fmt.Sprintf("0x%x", byte(d))
 	}
 }
 
