@@ -23,3 +23,6 @@ I drew inspiration, and copied quite a lot of code from (https://github.com/src0
 
 # Stuff I'll probably need later
 * https://github.com/janne/bcm2835 - To talk to the Raspberry Pi GPIO
+
+# Useful Stuff
+* https://subdiesel.wordpress.com/2011/07/13/ssm2-via-serial-at-10400-baud/ - 10400 baud bump!

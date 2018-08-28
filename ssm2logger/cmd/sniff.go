@@ -19,7 +19,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/jacobsa/go-serial/serial"
 	. "github.com/rgeyer/ssm2logger/ssm2lib"
@@ -29,50 +31,63 @@ import (
 // sniffCmd represents the sniff command
 var sniffCmd = &cobra.Command{
 	Use:   "sniff",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Passively listens to traffic on the OBDII bus and logs it to a binary file.",
+	Long: `Passively listens to traffic on the OBDII bus and logs it to a binary file.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	It will sniff in a loop, as quickly as possible, until a SIGINT or SIGTERM is encountered.
+
+	Useful for reverse engineering other scantools connected to the ECU or TCU`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		options := serial.OpenOptions{
-			PortName:              "/dev/tty.usbserial-1420",
+			PortName:              port,
 			BaudRate:              4800,
 			DataBits:              8,
 			StopBits:              1,
-			InterCharacterTimeout: 100,
-			MinimumReadSize:       0,
+			InterCharacterTimeout: 0,
+			MinimumReadSize:       1,
 			ParityMode:            serial.PARITY_NONE,
 		}
 
 		f, err := serial.Open(options)
-
 		if err != nil {
 			return fmt.Errorf("Error opening serial port: %s", err)
 		} else {
 			defer f.Close()
 		}
 
+		sigs := make(chan os.Signal, 1)
+		loop := true
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+		go func() {
+			for sig := range sigs {
+				fmt.Println(sig)
+				if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+					loop = false
+					// TODO: Nasty dirty hack because I need to understand channels and
+					// timeouts better, or use better options for opening my serial port.
+					// I throw a byte on the wire for my loop to read, allowing it to
+					// stop blocking and properly exit.
+					// f.Write([]byte{0x00})
+				}
+			}
+		}()
+
 		allbytes := []byte{}
-		start := time.Now().Second()
-		end := start + 10
-		duration := start
-		for duration < end {
+		for loop {
 			resp, err := ioutil.ReadAll(f)
 			if err != nil {
 				if err != io.EOF {
 					return fmt.Errorf("Error reading from serial port: %s", err)
 				}
 			} else {
-				fmt.Println("Fetched bytes ", len(resp))
 				allbytes = append(allbytes, resp...)
 			}
-			duration = time.Now().Second()
 		}
 
 		fmt.Println("Finished snooping")
+
+		ioutil.WriteFile("snooped.bin", allbytes, 0644)
 
 		packets := []Ssm2Packet{}
 
@@ -91,13 +106,14 @@ to quickly create a Cobra application.`,
 						fmt.Println("Couldn't marshal the packet", err)
 					} else {
 						fmt.Println(string(js))
-						fmt.Println(packet.GetBytes())
+						fmt.Println(packet.Bytes())
 					}
 				} else {
 					fmt.Println("Stream ended before remainder of packet arrived")
+					curbyte += 1
 				}
 			} else {
-				fmt.Println(fmt.Sprintf("0x%x was not a header byte", allbytes[curbyte]))
+				fmt.Println(fmt.Sprintf("0x%.2x was not a header byte", allbytes[curbyte]))
 				curbyte += 1
 			}
 		}

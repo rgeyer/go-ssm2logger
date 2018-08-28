@@ -43,7 +43,7 @@ func (c Ssm2Command) String() string {
 	case Ssm2CommandInitResponseFF:
 		return "Init Response"
 	default:
-		return fmt.Sprintf("0x%x", byte(c))
+		return fmt.Sprintf("0x%.2x", byte(c))
 	}
 }
 

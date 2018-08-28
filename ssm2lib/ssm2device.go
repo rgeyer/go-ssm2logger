@@ -5,10 +5,11 @@ import "fmt"
 type Ssm2Device byte
 
 const (
-	Ssm2DeviceNone             Ssm2Device = 0
-	Ssm2DeviceEngine10         Ssm2Device = 0x10
-	Ssm2DeviceTransmission18   Ssm2Device = 0x18
-	Ssm2DeviceDiagnosticToolF0 Ssm2Device = 0xf0
+	Ssm2DeviceNone                     Ssm2Device = 0
+	Ssm2DeviceEngine10                 Ssm2Device = 0x10
+	Ssm2DeviceTransmission18           Ssm2Device = 0x18
+	Ssm2DeviceDiagnosticToolF0         Ssm2Device = 0xf0
+	Ssm2DeviceFastModeDiagnosticToolF2 Ssm2Device = 0xf2
 )
 
 func (d Ssm2Device) String() string {
@@ -21,6 +22,8 @@ func (d Ssm2Device) String() string {
 		return "Transmission"
 	case Ssm2DeviceDiagnosticToolF0:
 		return "DiagnosticTool"
+	case Ssm2DeviceFastModeDiagnosticToolF2:
+		return "FastModeDiagnosticTool"
 	default:
 		return fmt.Sprintf("0x%x", byte(d))
 	}

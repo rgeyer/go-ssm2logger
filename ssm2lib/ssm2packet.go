@@ -1,6 +1,9 @@
 package ssm2lib
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Ssm2PacketIndex int
 
@@ -38,90 +41,131 @@ const (
 )
 
 type Ssm2Packet struct {
-	Destination Ssm2Device  `json:destination`
-	Source      Ssm2Device  `json:source`
-	Command     Ssm2Command `json:command`
-	DataSize    int         `json:data_size`
-	Data        []byte      `json:data`
-	buffer      []byte
+	buffer []byte
 }
 
 func NewPacketFromBytes(bytes []byte) *Ssm2Packet {
 	p := &Ssm2Packet{
-		Destination: Ssm2Device(bytes[Ssm2PacketIndexDestination]),
-		Source:      Ssm2Device(bytes[Ssm2PacketIndexSource]),
-		Command:     Ssm2Command(bytes[Ssm2PacketIndexCommand]),
-		DataSize:    int(bytes[Ssm2PacketIndexDataSize]),
-		buffer:      bytes,
+		buffer: bytes,
 	}
-	p.Data = p.GetData()
 	return p
 }
 
-func NewInitPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
+func NewInitRequestPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
+	// This is the same as "Ssm2PacketMinSize", but we're going to be very
+	// specific here
+	packet_size := Ssm2PacketHeaderSize + 1
+	buffer := make([]byte, packet_size)
+	buffer[0] = Ssm2PacketFirstByte
+	buffer[Ssm2PacketIndexDestination] = byte(dest)
+	buffer[Ssm2PacketIndexSource] = byte(src)
+	buffer[Ssm2PacketIndexDataSize] = 1
+	buffer[Ssm2PacketIndexCommand] = byte(Ssm2CommandInitRequestBF)
+	buffer[len(buffer)-1] = CalculateChecksum(buffer)
 	return &Ssm2Packet{
-		Destination: dest,
-		Source:      src,
-		Command:     Ssm2CommandInitRequestBF,
-		DataSize:    1,
-		buffer:      make([]byte, Ssm2PacketHeaderSize+1),
+		buffer: buffer,
 	}
 }
 
-func NewReadPacket(src Ssm2Device, dest Ssm2Device, pids []byte) *Ssm2Packet {
+func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte) *Ssm2Packet {
 	// TODO:
 	// As a result of the maximum data size of 255 bytes, there can be a total of
 	// 85 pids in a single read request. 255 / 3 = 85.
 	// Need to check for this and return an error or something if more than 85
 	// are requested
-	buffer_size := 5 + 2 + (3 * len(pids))
-	data_size := 2 + (3 * len(pids))
 
-	fmt.Println("Buffer Size: ", buffer_size)
-	fmt.Println("Data Size: ", data_size)
-	p := &Ssm2Packet{
-		Destination: dest,
-		Source:      src,
-		Command:     Ssm2CommandReadAddressesRequestA8,
-		DataSize:    data_size,
-		buffer:      make([]byte, buffer_size),
-	}
-	p.Data = p.GetData()
-	p.buffer[5] = 0x00 // Padding.. I guess
+	// Header (5 bytes)
+	// + Request Type (0x00 for single request 0x01 for continuous)
+	// + 3 bytes for each address + 1 checksum byte
+	packet_size := Ssm2PacketHeaderSize + 1 + (3 * len(pids)) + 1
+	buffer := make([]byte, packet_size)
+	buffer[0] = Ssm2PacketFirstByte
+	buffer[Ssm2PacketIndexDestination] = byte(dest)
+	buffer[Ssm2PacketIndexSource] = byte(src)
+	// This is a hack, since the size must include the command byte, and exclude
+	// the checksum byte. TODO: Not sure if this is right. Have to wrap my head
+	// around it better.
+	buffer[Ssm2PacketIndexDataSize] = byte(packet_size - Ssm2PacketHeaderSize)
+	buffer[Ssm2PacketIndexCommand] = byte(Ssm2CommandReadAddressesRequestA8)
+	buffer[Ssm2PacketIndexData] = 0x00 // 0x00 for single request 0x01 for continuous
 
-	pids_idx := 6
+	pids_idx := Ssm2PacketIndexData + 1
 	for _, pid := range pids {
+		buffer[pids_idx] = 0x00 // A blank value for PID1
 		pids_idx += 1
-		p.buffer[pids_idx] = 0x00 // A blank value for PID1
+		buffer[pids_idx] = 0x00 // A blank value for PID1
 		pids_idx += 1
-		p.buffer[pids_idx] = 0x00 // A blank value for PID1
+		buffer[pids_idx] = pid // PID1
 		pids_idx += 1
-		p.buffer[pids_idx] = pid // PID1
 	}
 
+	buffer[len(buffer)-1] = CalculateChecksum(buffer)
+	p := &Ssm2Packet{
+		buffer: buffer,
+	}
 	return p
 }
 
-func (p *Ssm2Packet) checksumCalculated() byte {
+// func NewWriteAddressRequestPacket(src Ssm2Device, dest Ssm2Device, address []byte, value []byte) *Ssm2Packet {
+// 	data_size := len(address) + len(value) + 1
+// 	buffer_size := Ssm2PacketMinSize + data_size - 1
+// 	p := &Ssm2Packet{
+// 		Destination: dest,
+// 		Source:      src,
+// 		Command:     Ssm2CommandWriteAddressRequestB8,
+// 		DataSize:    data_size,
+// 		buffer:      make([]byte, buffer_size),
+// 	}
+//
+// 	for idx, data_byte := range address {
+// 		p.buffer[idx+int(Ssm2PacketIndexData)] = data_byte
+// 	}
+//
+// 	for idx, data_byte := range value {
+// 		p.buffer[len(address)+idx+int(Ssm2PacketIndexData)] = data_byte
+// 	}
+//
+// 	return p
+// }
+
+func CalculateChecksum(buffer []byte) byte {
 	var sum int
 	sum = 0
-	length := len(p.buffer) - 1
+	length := len(buffer) - 1
 	for i := 0; i < length; i++ {
-		sum = sum + int(p.buffer[i])
+		sum = sum + int(buffer[i])
 	}
 	return byte(sum)
 }
 
-func (p *Ssm2Packet) GetBytes() []byte {
-	p.buffer[0] = Ssm2PacketFirstByte
-	p.buffer[1] = byte(p.Destination)
-	p.buffer[2] = byte(p.Source)
-	p.buffer[3] = byte(p.DataSize)
-	p.buffer[4] = byte(p.Command)
-	p.buffer[len(p.buffer)-1] = p.checksumCalculated()
+func (p *Ssm2Packet) Bytes() []byte {
 	return p.buffer
 }
 
-func (p *Ssm2Packet) GetData() []byte {
-	return p.buffer[Ssm2PacketHeaderSize-1 : Ssm2PacketHeaderSize+p.DataSize-1]
+func (p *Ssm2Packet) DataSize() int {
+	return int(p.buffer[Ssm2PacketIndexDataSize])
+}
+
+func (p *Ssm2Packet) Data() []byte {
+	return p.buffer[Ssm2PacketHeaderSize-1 : p.DataSize()]
+}
+
+func (p *Ssm2Packet) Command() Ssm2Command {
+	return Ssm2Command(p.buffer[Ssm2PacketIndexCommand])
+}
+
+func (p *Ssm2Packet) ToJson() (string, error) {
+	js, err := json.Marshal(p)
+	if err != nil {
+		return "", err
+	}
+
+	return string(js), nil
+}
+
+func (p *Ssm2Packet) Validate() error {
+	if p.buffer[Ssm2PacketIndexHeader] != Ssm2PacketFirstByte {
+		return fmt.Errorf("First byte of packet is wrong. Expected 0x80, got 0x%.2x", p.buffer[Ssm2PacketIndexHeader])
+	}
+	return nil
 }

@@ -15,15 +15,19 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	homedir "github.com/mitchellh/go-homedir"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var logger *log.Logger
 var cfgFile string
+var port string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -38,6 +42,34 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		logger = log.New()
+		logger.SetLevel(log.DebugLevel)
+
+		// TODO: This will write to a logfile. I'd like to write both to a logfile
+		// and stdout..
+		/*
+			// open a file
+			f, err := os.OpenFile("ssm2logger.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+			if err != nil {
+				fmt.Printf("error opening log file: %v", err)
+			}
+
+			// don't forget to close it
+			defer f.Close()
+
+			// Log as JSON instead of the default ASCII formatter.
+			// log.SetFormatter(&log.JSONFormatter{})
+
+			log.SetOutput(f)
+		*/
+
+		if port == "" {
+			errorMsg := "You must supply the --port flag."
+			return errors.New(errorMsg)
+		}
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -56,6 +88,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ssm2logger.yaml)")
+	rootCmd.PersistentFlags().StringVar(&port, "port", "", "The Serial port to connect to. Example: /dev/tty.usbserial-1420")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
