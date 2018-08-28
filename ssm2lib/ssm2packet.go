@@ -70,8 +70,8 @@ func NewInitRequestPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
 func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte) *Ssm2Packet {
 	// TODO:
 	// As a result of the maximum data size of 255 bytes, there can be a total of
-	// 85 pids in a single read request. 255 / 3 = 85.
-	// Need to check for this and return an error or something if more than 85
+	// 83 pids in a single read request. (255-5) / 3 = 83.
+	// Need to check for this and return an error or something if more than 83
 	// are requested
 
 	// Header (5 bytes)
