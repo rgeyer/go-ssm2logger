@@ -17,6 +17,9 @@ package cmd
 import (
 	"encoding/hex"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	. "github.com/rgeyer/ssm2logger/ssm2lib"
@@ -51,12 +54,35 @@ to quickly create a Cobra application.`,
 		// Cooldown between writes?!
 		time.Sleep(200 * time.Millisecond)
 
-		readResponse, err := ssm2_conn.ReadAddresses([]byte{0x46})
+		readResponse, err := ssm2_conn.ReadAddressesContinous([]byte{0x46})
 		if err != nil {
 			return err
 		}
 
 		fmt.Println(readResponse.ToJson())
+
+		sigs := make(chan os.Signal, 1)
+		loop := true
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+		go func() {
+			for sig := range sigs {
+				fmt.Println(sig)
+				if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+					loop = false
+				}
+			}
+		}()
+
+		for loop {
+			readPacket, err := ssm2_conn.GetNextPacketInStream()
+			if err != nil {
+				return err
+			}
+			fmt.Println(hex.EncodeToString(readPacket.Bytes()))
+		}
+
+		fmt.Println("Broke outta da loop")
 
 		ssm2_conn.Close()
 

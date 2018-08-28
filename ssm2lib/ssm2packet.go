@@ -67,7 +67,7 @@ func NewInitRequestPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
 	}
 }
 
-func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte) *Ssm2Packet {
+func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte, push_mode bool) *Ssm2Packet {
 	// TODO:
 	// As a result of the maximum data size of 255 bytes, there can be a total of
 	// 83 pids in a single read request. (255-5) / 3 = 83.
@@ -87,7 +87,12 @@ func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte) *
 	// around it better.
 	buffer[Ssm2PacketIndexDataSize] = byte(packet_size - Ssm2PacketHeaderSize)
 	buffer[Ssm2PacketIndexCommand] = byte(Ssm2CommandReadAddressesRequestA8)
-	buffer[Ssm2PacketIndexData] = 0x00 // 0x00 for single request 0x01 for continuous
+	// 0x00 for single request 0x01 for continuous
+	if push_mode {
+		buffer[Ssm2PacketIndexData] = 0x01
+	} else {
+		buffer[Ssm2PacketIndexData] = 0x00
+	}
 
 	pids_idx := Ssm2PacketIndexData + 1
 	for _, pid := range pids {

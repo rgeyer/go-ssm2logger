@@ -88,7 +88,12 @@ func (c *Ssm2Connection) InitEngine() (*Ssm2Packet, error) {
 /// (84 is theoretical limit because of packet length byte)
 /// </summary>
 func (c *Ssm2Connection) ReadAddresses(addresses []byte) (*Ssm2Packet, error) {
-	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses)
+	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, false)
+	return c.sendPacketAndFetchResponsePacket(readPacket)
+}
+
+func (c *Ssm2Connection) ReadAddressesContinous(addresses []byte) (*Ssm2Packet, error) {
+	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, true)
 	return c.sendPacketAndFetchResponsePacket(readPacket)
 }
 
