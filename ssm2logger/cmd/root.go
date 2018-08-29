@@ -44,25 +44,7 @@ to quickly create a Cobra application.`,
 	//	Run: func(cmd *cobra.Command, args []string) { },
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		logger = log.New()
-		logger.SetLevel(log.DebugLevel)
-
-		// TODO: This will write to a logfile. I'd like to write both to a logfile
-		// and stdout..
-		/*
-			// open a file
-			f, err := os.OpenFile("ssm2logger.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-			if err != nil {
-				fmt.Printf("error opening log file: %v", err)
-			}
-
-			// don't forget to close it
-			defer f.Close()
-
-			// Log as JSON instead of the default ASCII formatter.
-			// log.SetFormatter(&log.JSONFormatter{})
-
-			log.SetOutput(f)
-		*/
+		logger.SetLevel(log.InfoLevel)
 
 		if port == "" {
 			errorMsg := "You must supply the --port flag."
@@ -88,7 +70,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ssm2logger.yaml)")
-	rootCmd.PersistentFlags().StringVar(&port, "port", "", "The Serial port to connect to. Example: /dev/tty.usbserial-1420")
+	rootCmd.PersistentFlags().StringVar(&port, "port", "", "The Serial port to connect to. Example: /dev/ttyUSB0")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

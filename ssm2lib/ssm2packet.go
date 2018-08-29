@@ -41,29 +41,65 @@ const (
 )
 
 type Ssm2Packet struct {
-	buffer []byte
+	Packet Ssm2PacketBytes
+}
+
+type Ssm2PacketBytes []byte
+
+func NewPacketBytes(dest Ssm2Device, src Ssm2Device, command Ssm2Command, data []byte) Ssm2PacketBytes {
+	retval := make([]byte, Ssm2PacketMinSize+len(data))
+	retval[0] = Ssm2PacketFirstByte
+	retval[Ssm2PacketIndexDestination] = byte(dest)
+	retval[Ssm2PacketIndexSource] = byte(src)
+	retval[Ssm2PacketIndexDataSize] = byte(len(data) + 1)
+	retval[Ssm2PacketIndexCommand] = byte(command)
+	retval[len(retval)-1] = CalculateChecksum(retval)
+	return Ssm2PacketBytes(retval)
+}
+
+func (b Ssm2PacketBytes) GetFirstByte() byte {
+	return b[0]
+}
+
+func (b Ssm2PacketBytes) GetDataSize() int {
+	return int(b[Ssm2PacketIndexDataSize])
+}
+
+func (b Ssm2PacketBytes) GetData() []byte {
+	return b[Ssm2PacketIndexData : int(Ssm2PacketIndexData)+b.GetDataSize()]
+}
+
+func (b Ssm2PacketBytes) GetCommand() Ssm2Command {
+	return Ssm2Command(b[Ssm2PacketIndexCommand])
+}
+
+func (b Ssm2PacketBytes) Validate() error {
+	if b.GetFirstByte() != Ssm2PacketFirstByte {
+		return fmt.Errorf("First byte of packet is wrong. Expected 0x80, got 0x%.2x", b.GetFirstByte())
+	}
+	return nil
+}
+
+func (p *Ssm2Packet) ToJson() (string, error) {
+	js, err := json.Marshal(p)
+	if err != nil {
+		return "", err
+	}
+
+	return string(js), nil
 }
 
 func NewPacketFromBytes(bytes []byte) *Ssm2Packet {
 	p := &Ssm2Packet{
-		buffer: bytes,
+		Packet: bytes,
 	}
 	return p
 }
 
 func NewInitRequestPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
-	// This is the same as "Ssm2PacketMinSize", but we're going to be very
-	// specific here
-	packet_size := Ssm2PacketHeaderSize + 1
-	buffer := make([]byte, packet_size)
-	buffer[0] = Ssm2PacketFirstByte
-	buffer[Ssm2PacketIndexDestination] = byte(dest)
-	buffer[Ssm2PacketIndexSource] = byte(src)
-	buffer[Ssm2PacketIndexDataSize] = 1
-	buffer[Ssm2PacketIndexCommand] = byte(Ssm2CommandInitRequestBF)
-	buffer[len(buffer)-1] = CalculateChecksum(buffer)
+	buffer := NewPacketBytes(dest, src, Ssm2CommandInitRequestBF, nil)
 	return &Ssm2Packet{
-		buffer: buffer,
+		Packet: buffer,
 	}
 }
 
@@ -106,32 +142,10 @@ func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte, p
 
 	buffer[len(buffer)-1] = CalculateChecksum(buffer)
 	p := &Ssm2Packet{
-		buffer: buffer,
+		Packet: buffer,
 	}
 	return p
 }
-
-// func NewWriteAddressRequestPacket(src Ssm2Device, dest Ssm2Device, address []byte, value []byte) *Ssm2Packet {
-// 	data_size := len(address) + len(value) + 1
-// 	buffer_size := Ssm2PacketMinSize + data_size - 1
-// 	p := &Ssm2Packet{
-// 		Destination: dest,
-// 		Source:      src,
-// 		Command:     Ssm2CommandWriteAddressRequestB8,
-// 		DataSize:    data_size,
-// 		buffer:      make([]byte, buffer_size),
-// 	}
-//
-// 	for idx, data_byte := range address {
-// 		p.buffer[idx+int(Ssm2PacketIndexData)] = data_byte
-// 	}
-//
-// 	for idx, data_byte := range value {
-// 		p.buffer[len(address)+idx+int(Ssm2PacketIndexData)] = data_byte
-// 	}
-//
-// 	return p
-// }
 
 func CalculateChecksum(buffer []byte) byte {
 	var sum int
@@ -141,36 +155,4 @@ func CalculateChecksum(buffer []byte) byte {
 		sum = sum + int(buffer[i])
 	}
 	return byte(sum)
-}
-
-func (p *Ssm2Packet) Bytes() []byte {
-	return p.buffer
-}
-
-func (p *Ssm2Packet) DataSize() int {
-	return int(p.buffer[Ssm2PacketIndexDataSize])
-}
-
-func (p *Ssm2Packet) Data() []byte {
-	return p.buffer[Ssm2PacketHeaderSize-1 : p.DataSize()]
-}
-
-func (p *Ssm2Packet) Command() Ssm2Command {
-	return Ssm2Command(p.buffer[Ssm2PacketIndexCommand])
-}
-
-func (p *Ssm2Packet) ToJson() (string, error) {
-	js, err := json.Marshal(p)
-	if err != nil {
-		return "", err
-	}
-
-	return string(js), nil
-}
-
-func (p *Ssm2Packet) Validate() error {
-	if p.buffer[Ssm2PacketIndexHeader] != Ssm2PacketFirstByte {
-		return fmt.Errorf("First byte of packet is wrong. Expected 0x80, got 0x%.2x", p.buffer[Ssm2PacketIndexHeader])
-	}
-	return nil
 }

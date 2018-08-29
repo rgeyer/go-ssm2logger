@@ -14,8 +14,11 @@ I drew inspiration, and copied quite a lot of code from (https://github.com/src0
 
 # TODO
 * Once I get a handle on the actual SSM2 "library", break it out into it's own project, or make it easily consumable from this one
+* Refactoring... There are a few things leftover from experiments.
+* Support other protocols (OBD2?)
+* Expand logging (like actual application logging) capabilities, with different loggers for different parts of the app, and individually assignable log levels and formatters.
+* Figure out Learned Values, Switches, and reading/resetting DTCs
 * Add tests
-* Add a cobra CLI
 * Finish the MVP functionality
   * Consume a RomRaider XML definition file for parameters
   * Log specific PIDs to a log file

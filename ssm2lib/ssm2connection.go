@@ -39,18 +39,6 @@ func (c *Ssm2Connection) SetLogger(logger *log.Logger) {
 }
 
 func (c *Ssm2Connection) Open(port string) error {
-	// options := serial.OpenOptions{
-	// 	PortName:              port,
-	// 	BaudRate:              4800,
-	// 	DataBits:              8,
-	// 	StopBits:              1,
-	// 	InterCharacterTimeout: 200,
-	// 	MinimumReadSize:       1,
-	// 	ParityMode:            serial.PARITY_NONE,
-	// }
-	//
-	// serial_port, err := serial.Open(options)
-
 	config := &serial.Config{
 		Name:        port,
 		Baud:        4800,
@@ -73,9 +61,13 @@ func (c *Ssm2Connection) Close() {
 	c.serial.Close()
 }
 
-func (c *Ssm2Connection) InitEngine() (*Ssm2Packet, error) {
+func (c *Ssm2Connection) InitEngine() (*Ssm2InitResponsePacket, error) {
 	initPacket := NewInitRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10)
-	return c.sendPacketAndFetchResponsePacket(initPacket)
+	packetBytes, err := c.sendPacketAndFetchResponsePacket(initPacket.Packet)
+	if err != nil {
+		return nil, err
+	}
+	return NewSsm2InitResponsePacketFromBytes(packetBytes)
 }
 
 /// <summary>
@@ -87,22 +79,54 @@ func (c *Ssm2Connection) InitEngine() (*Ssm2Packet, error) {
 /// (2005 cars might support ≤ 45.)
 /// (84 is theoretical limit because of packet length byte)
 /// </summary>
-func (c *Ssm2Connection) ReadAddresses(addresses []byte) (*Ssm2Packet, error) {
+func (c *Ssm2Connection) ReadAddresses(addresses []byte) (Ssm2PacketBytes, error) {
 	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, false)
-	return c.sendPacketAndFetchResponsePacket(readPacket)
+	return c.sendPacketAndFetchResponsePacket(readPacket.Packet)
 }
 
-func (c *Ssm2Connection) ReadAddressesContinous(addresses []byte) (*Ssm2Packet, error) {
-	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, true)
-	return c.sendPacketAndFetchResponsePacket(readPacket)
-}
+func (c *Ssm2Connection) ReadParameters(params []Ssm2Parameter) (Ssm2PacketBytes, error) {
+	packet_size := Ssm2PacketHeaderSize + 1 + (3 * len(params)) + 1
+	buffer := make([]byte, packet_size)
+	buffer[0] = Ssm2PacketFirstByte
+	buffer[Ssm2PacketIndexDestination] = byte(Ssm2DeviceEngine10)
+	buffer[Ssm2PacketIndexSource] = byte(Ssm2DeviceDiagnosticToolF0)
+	// This is a hack, since the size must include the command byte, and exclude
+	// the checksum byte. TODO: Not sure if this is right. Have to wrap my head
+	// around it better.
+	buffer[Ssm2PacketIndexDataSize] = byte(packet_size - Ssm2PacketHeaderSize)
+	buffer[Ssm2PacketIndexCommand] = byte(Ssm2CommandReadAddressesRequestA8)
+	// 0x00 for single request 0x01 for continuous
+	buffer[Ssm2PacketIndexData] = 0x01
 
-func (c *Ssm2Connection) sendPacketAndFetchResponsePacket(packet *Ssm2Packet) (*Ssm2Packet, error) {
-	if c.logger != nil {
-		c.logger.WithFields(log.Fields{"command": packet.Command(), "bytes": hex.EncodeToString(packet.Bytes())}).Debug("Sending SSM2 Command")
+	param_idx := Ssm2PacketIndexData + 1
+	for _, param := range params {
+		address, err := param.Address.GetAddressBytes()
+		if err != nil {
+			return nil, err
+		}
+		buffer[param_idx] = address[0]
+		param_idx += 1
+		buffer[param_idx] = address[1]
+		param_idx += 1
+		buffer[param_idx] = address[2]
+		param_idx += 1
 	}
 
-	wrotebytes, err := c.serial.Write(packet.Bytes())
+	buffer[len(buffer)-1] = CalculateChecksum(buffer)
+	return c.sendPacketAndFetchResponsePacket(buffer)
+}
+
+func (c *Ssm2Connection) ReadAddressesContinous(addresses []byte) (Ssm2PacketBytes, error) {
+	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, true)
+	return c.sendPacketAndFetchResponsePacket(readPacket.Packet)
+}
+
+func (c *Ssm2Connection) sendPacketAndFetchResponsePacket(packet Ssm2PacketBytes) (Ssm2PacketBytes, error) {
+	if c.logger != nil {
+		c.logger.WithFields(log.Fields{"command": packet.GetCommand(), "bytes": hex.EncodeToString(packet)}).Debug("Sending SSM2 Command")
+	}
+
+	wrotebytes, err := c.serial.Write(packet)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to send serial: %s", err)
 	}
@@ -131,7 +155,7 @@ func (c *Ssm2Connection) sendPacketAndFetchResponsePacket(packet *Ssm2Packet) (*
 	// Is this totally unecessary? Sleeping between putting bits on the wire, and
 	// reading them. This should be "instantaneous" since the file is local in
 	// both cases?
-	time.Sleep(time.Duration(MicrosecondsOnTheWireBytes(packet.Bytes())) * time.Microsecond)
+	time.Sleep(time.Duration(MicrosecondsOnTheWireBytes(packet)) * time.Microsecond)
 
 	_, err = c.GetNextPacketInStream()
 	if err != nil {
@@ -143,8 +167,8 @@ func (c *Ssm2Connection) sendPacketAndFetchResponsePacket(packet *Ssm2Packet) (*
 	return responsePacket, err
 }
 
-func (c *Ssm2Connection) GetNextPacketInStream() (*Ssm2Packet, error) {
-	var retval *Ssm2Packet
+func (c *Ssm2Connection) GetNextPacketInStream() (Ssm2PacketBytes, error) {
+	var retval Ssm2PacketBytes
 	// Always assume that we have a fully formed packet waiting for us to fetch.
 	// Also assume we're trying to fetch a response packet immediately after
 	// sending a request and wait for the ECU/TCU to put a packet header on the wire
@@ -183,7 +207,7 @@ func (c *Ssm2Connection) GetNextPacketInStream() (*Ssm2Packet, error) {
 			"data":  hex.EncodeToString(packet_bytes),
 		}).Debug("Here's the entire packet")
 	}
-	retval = NewPacketFromBytes(packet_bytes)
+	retval = Ssm2PacketBytes(packet_bytes)
 	return retval, nil
 }
 

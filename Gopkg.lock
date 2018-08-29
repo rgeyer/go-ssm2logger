@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/Knetic/govaluate"
+  packages = ["."]
+  revision = "d216395917cc49052c7c7094cf57f09657ca08a8"
+  version = "v3.0.0"
+
+[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
@@ -239,6 +245,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c77e6dbdfe732ab65fd5dd992cfe5517a506aaf57705df0626aca48adb85afc3"
+  inputs-digest = "c827d6010171120429358b757bf6f378c8dc19adc90b2b4561e42ae03a4bd418"
   solver-name = "gps-cdcl"
   solver-version = 1

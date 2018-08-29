@@ -60,3 +60,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/tarm/serial"
+
+[[constraint]]
+  name = "github.com/Knetic/govaluate"
+  version = "3.0.0"

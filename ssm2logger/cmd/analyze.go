@@ -64,7 +64,7 @@ to quickly create a Cobra application.`,
 						fmt.Println("Couldn't marshal the packet", err)
 					} else {
 						fmt.Println(string(js))
-						fmt.Println(packet.Bytes())
+						fmt.Println(packet.Packet)
 					}
 				} else {
 					fmt.Println("Stream ended before remainder of packet arrived")
