@@ -124,12 +124,20 @@ var logCmd = &cobra.Command{
 		header := []string{"timestamp"}
 		var actual_ecu_params []Ssm2Parameter
 		for _, param := range supportedParams {
-			logger.Info(param)
-			if param.EcuByteIndex > 0 {
+			// Checking the limitations of my 2005 ECU
+			// TODO: If you request too many, it'll just timeout. Need to test this
+			// case and be exit gracefully, letting the end user know they're asking
+			// for too many params.
+			// if idx == 40 {
+			// 	break
+			// }
+			if param.EcuByteIndex > 0 && param.Address.Length > 1 {
 				header = append(header, fmt.Sprintf("%s (%s)", param.Name, param.Conversions[0].Units))
 				actual_ecu_params = append(actual_ecu_params, param)
 			}
 		}
+
+		logger.WithField("length", len(actual_ecu_params)).Info("Actual ECU params that are supported")
 
 		writer.Write(header)
 

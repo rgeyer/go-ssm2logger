@@ -4,8 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"encoding/binary"
-
 	"github.com/Knetic/govaluate"
 )
 
@@ -42,14 +40,16 @@ type Ssm2Parameter struct {
 }
 
 func (p Ssm2Parameter) Convert(unit string, value []byte) (float64, error) {
-	var intval int64
+	var intval int
 	// TODO: I'm making several assumptions here. I've only tested with 1 byte
 	// responses so far, and I'm not 100% sure what the 2+ byte responses are or
 	// how they work.
 	if len(value) > 1 {
-		intval, _ = binary.Varint(value)
+		intval = int(uint(value[1]) | uint(value[0])<<8)
+	} else if len(value) == 1 {
+		intval = int(value[0])
 	} else {
-		intval = int64(value[0])
+		intval = 0
 	}
 	for _, conversion := range p.Conversions {
 		if conversion.Units == unit {
