@@ -57,7 +57,7 @@ var _ = Describe("Ssm2lib", func() {
 				}
 
 				binary_ten := make([]byte, binary.MaxVarintLen64)
-				binary.PutVarint(binary_ten, 10)
+				binary.PutUvarint(binary_ten, 10)
 				val, err := param.Convert("%", binary_ten)
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(val).Should(Equal(5.0))

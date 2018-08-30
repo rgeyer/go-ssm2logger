@@ -24,6 +24,6 @@ func (p *Ssm2InitResponsePacket) GetRomId() []byte {
 }
 
 func (p *Ssm2InitResponsePacket) GetCapabilityBytes() []byte {
-	capabilitiesIndex := Ssm2PacketHeaderSize + 3 + 5
+	capabilitiesIndex := Ssm2PacketHeaderSize //Ssm2PacketHeaderSize + 3 + 5
 	return p.Packet[capabilitiesIndex : len(p.Packet)-1]
 }
