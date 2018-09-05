@@ -24,6 +24,32 @@ type Ssm2Protocol struct {
 	ConnectTimeout int             `xml:"connect_timeout,attr"`
 	SendTimeout    int             `xml:"send_timeout,attr"`
 	Parameters     []Ssm2Parameter `xml:"parameters>parameter"`
+	Dtcs           []Ssm2Dtc       `xml:"dtcodes>dtcode"`
+}
+
+type Ssm2Dtc struct {
+	Id          string `xml:"id,attr"`
+	Name        string `xml:"name,attr"`
+	Description string `xml:"desc,attr"`
+	TmpAddr     string `xml:"tmpaddr,attr"`
+	MemAddr     string `xml:"memaddr,attr"`
+	Bit         uint   `xml:"bit,attr"`
+	Set         bool
+	Stored      bool
+}
+
+func (d Ssm2Dtc) GetTmpAddressBytes() ([]byte, error) {
+	if len(d.TmpAddr) > 2 {
+		return hex.DecodeString(d.TmpAddr[2:])
+	}
+	return []byte{}, fmt.Errorf("Dtc Temp Address malformed %s", d.TmpAddr)
+}
+
+func (d Ssm2Dtc) GetMemAddressBytes() ([]byte, error) {
+	if len(d.MemAddr) > 2 {
+		return hex.DecodeString(d.MemAddr[2:])
+	}
+	return []byte{}, fmt.Errorf("Dtc Address malformed %s", d.MemAddr)
 }
 
 // TODO: Some of these have dependencies on other params, and are actually
@@ -44,7 +70,9 @@ func (p Ssm2Parameter) Convert(unit string, value []byte) (float64, error) {
 	// TODO: I'm making several assumptions here. I've only tested with 1 byte
 	// responses so far, and I'm not 100% sure what the 2+ byte responses are or
 	// how they work.
-	if len(value) > 1 {
+	if len(value) == 4 {
+		intval = int(uint(value[3]) | uint(value[2])<<8 | uint(value[1])<<16 | uint(value[0]<<32))
+	} else if len(value) == 2 {
 		intval = int(uint(value[1]) | uint(value[0])<<8)
 	} else if len(value) == 1 {
 		intval = int(value[0])

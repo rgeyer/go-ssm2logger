@@ -79,7 +79,7 @@ func (c *Ssm2Connection) InitEngine() (*Ssm2InitResponsePacket, error) {
 /// (2005 cars might support ≤ 45.)
 /// (84 is theoretical limit because of packet length byte)
 /// </summary>
-func (c *Ssm2Connection) ReadAddresses(addresses []byte) (Ssm2PacketBytes, error) {
+func (c *Ssm2Connection) ReadAddresses(addresses [][]byte) (Ssm2PacketBytes, error) {
 	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, false)
 	return c.sendPacketAndFetchResponsePacket(readPacket.Packet)
 }
@@ -116,7 +116,7 @@ func (c *Ssm2Connection) ReadParameters(params []Ssm2Parameter) (Ssm2PacketBytes
 	return c.sendPacketAndFetchResponsePacket(buffer)
 }
 
-func (c *Ssm2Connection) ReadAddressesContinous(addresses []byte) (Ssm2PacketBytes, error) {
+func (c *Ssm2Connection) ReadAddressesContinous(addresses [][]byte) (Ssm2PacketBytes, error) {
 	readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, addresses, true)
 	return c.sendPacketAndFetchResponsePacket(readPacket.Packet)
 }

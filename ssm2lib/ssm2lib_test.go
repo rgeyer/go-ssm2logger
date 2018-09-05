@@ -17,7 +17,7 @@ var _ = Describe("Ssm2lib", func() {
 	})
 
 	It("Can create a read address request", func() {
-		readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, []byte{0x46}, false)
+		readPacket := NewReadAddressRequestPacket(Ssm2DeviceDiagnosticToolF0, Ssm2DeviceEngine10, [][]byte{{0x00, 0x00, 0x46}}, false)
 		Ω(readPacket.Packet).Should(Equal(Ssm2PacketBytes([]byte{0x80, 0x10, 0xf0, 0x05, 0xa8, 0x00, 0x00, 0x00, 0x46, 0x73})))
 	})
 

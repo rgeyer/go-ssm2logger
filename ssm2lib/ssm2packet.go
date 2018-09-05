@@ -103,7 +103,7 @@ func NewInitRequestPacket(src Ssm2Device, dest Ssm2Device) *Ssm2Packet {
 	}
 }
 
-func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte, push_mode bool) *Ssm2Packet {
+func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, addresses [][]byte, push_mode bool) *Ssm2Packet {
 	// TODO:
 	// As a result of the maximum data size of 255 bytes, there can be a total of
 	// 83 pids in a single read request. (255-5) / 3 = 83.
@@ -113,7 +113,11 @@ func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte, p
 	// Header (5 bytes)
 	// + Request Type (0x00 for single request 0x01 for continuous)
 	// + 3 bytes for each address + 1 checksum byte
-	packet_size := Ssm2PacketHeaderSize + 1 + (3 * len(pids)) + 1
+	data_len := 0
+	for _, addr := range addresses {
+		data_len += len(addr)
+	}
+	packet_size := Ssm2PacketHeaderSize + 1 + data_len + 1
 	buffer := make([]byte, packet_size)
 	buffer[0] = Ssm2PacketFirstByte
 	buffer[Ssm2PacketIndexDestination] = byte(dest)
@@ -130,14 +134,12 @@ func NewReadAddressRequestPacket(src Ssm2Device, dest Ssm2Device, pids []byte, p
 		buffer[Ssm2PacketIndexData] = 0x00
 	}
 
-	pids_idx := Ssm2PacketIndexData + 1
-	for _, pid := range pids {
-		buffer[pids_idx] = 0x00 // A blank value for PID1
-		pids_idx += 1
-		buffer[pids_idx] = 0x00 // A blank value for PID1
-		pids_idx += 1
-		buffer[pids_idx] = pid // PID1
-		pids_idx += 1
+	addrs_idx := int(Ssm2PacketIndexData + 1)
+	for _, addr := range addresses {
+		for idx, addr_byte := range addr {
+			buffer[addrs_idx+idx] = addr_byte
+		}
+		addrs_idx += len(addr)
 	}
 
 	buffer[len(buffer)-1] = CalculateChecksum(buffer)
